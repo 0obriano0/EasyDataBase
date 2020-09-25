@@ -1,0 +1,27 @@
+name: EasyDataBase
+main: com.chengbrian.EasyDataBase.main
+version: ${full.version}
+author: 0obrino0
+website: www.youtube.com/user/brian041301
+api-version: 1.13
+commands:
+   easydatabase:
+      description: easydatabase Commands.
+permissions:
+   easydatabase.*:
+      default: op
+      description: Give players with op everything by default
+      children:
+         easydatabase.user.*: true
+         easydatabase.admin.*: true
+   easydatabase.user.*:
+      default: true
+      children:
+         easydatabase.user: true
+         easydatabase.user.help: true
+   easydatabase.admin.*:
+      default: op
+      children:
+         easydatabase.admin: true
+         easydatabase.admin.test: true
+         easydatabase.admin.reload: true
