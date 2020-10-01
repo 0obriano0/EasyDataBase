@@ -2,12 +2,11 @@ package com.chengbrian.EasyDataBase.MySQL;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,12 +22,21 @@ public class MySQL {
 	protected transient String PASS;
 	protected transient String db;
    
+	protected int key;
+	
 	protected Connection conn = null;
 	
-	protected Timer timerCheckConnect = new Timer();
-	protected boolean isconnect = false;
+	public boolean isconnect = false;
 	
 	protected boolean showLog = true;
+	
+	public Connection getconn() {
+		return this.conn;
+	}
+	
+	public boolean isconnect() {
+		return isconnect;
+	}
 	
 	/**
 	 * 設定要不要顯示測試文字
@@ -70,16 +78,16 @@ public class MySQL {
 		this.DB_URL = DB_URL;
 		
 		if(this.DB_URL.contains("autoReconnect")) {
-			print("已經有加入了 autoReconnect");
+			print(DataBase.fileMessage.getString("SQL.html_autoReconnect_already"));
 		}else {
-			print("自動加入autoReconnect");
+			print(DataBase.fileMessage.getString("SQL.html_autoReconnect_add"));
 			if(this.DB_URL.contains("?")) {
 				String[] data_URL = this.DB_URL.split("\\?");
 				this.DB_URL = data_URL[0] + "?autoReconnect=true&" + data_URL[1];
-				print("DB_URL = " + this.DB_URL);
+				print(DataBase.fileMessage.getString("SQL.DataBase_URL").replaceAll("%URL%", this.DB_URL));
 			}else {
 				this.DB_URL = this.DB_URL + "?autoReconnect=true";
-				print("DB_URL = " + this.DB_URL);
+				print(DataBase.fileMessage.getString("SQL.DataBase_URL").replaceAll("%URL%", this.DB_URL));
 			}
 		}
 		
@@ -111,16 +119,16 @@ public class MySQL {
 		else this.DB_URL = DB_URL + (Encodingsetting.equals("") ? "" : "?" + Encodingsetting);
 		
 		if(this.DB_URL.contains("autoReconnect")) {
-			print("已經有加入了 autoReconnect");
+			print(DataBase.fileMessage.getString("SQL.html_autoReconnect_already"));
 		}else {
-			print("自動加入autoReconnect");
+			print(DataBase.fileMessage.getString("SQL.html_autoReconnect_all"));
 			if(this.DB_URL.contains("?")) {
 				String[] data_URL = this.DB_URL.split("?");
 				this.DB_URL = data_URL[0] + "?autoReconnect=true" + data_URL[1];
-				print("DB_URL = " + this.DB_URL);
+				print(DataBase.fileMessage.getString("SQL.DataBase_URL").replaceAll("%URL%", this.DB_URL));
 			}else {
 				this.DB_URL = this.DB_URL + "?autoReconnect=true";
-				print("DB_URL = " + this.DB_URL);
+				print(DataBase.fileMessage.getString("SQL.DataBase_URL").replaceAll("%URL%", this.DB_URL));
 			}
 		}
 		
@@ -129,46 +137,42 @@ public class MySQL {
 		if (this.open()) this.SelectDataBase();
 	}
 	
-	
 	/**
 	 * 檢查跟mysql的連線狀態
 	 * 如果有斷線的話會先暫停所有的動作
 	 * 直到重新連線為止
-	 * @author brian
-	 *
 	 */
-	private class checkMySQLConnect extends TimerTask {
-	    public void run() {
-	    	Statement stmt = null;
-			if(conn==null) open();
-		    
+	public void checkMySQLConnect() {
+		print("偵測~~~~");
+    	Statement stmt = null;
+		if(conn==null) open();
+	    
+		try{
+			stmt = conn.createStatement();
+			String sql = "use " + db;
+			stmt.executeUpdate(sql);
+			if(!isconnect) print(DataBase.fileMessage.getString("SQL.DataBase_is_connect"));
+			isconnect = true;
+		}catch(SQLException se){
+			if(se.getClass().getSimpleName().equals("CommunicationsException") || se.getClass().getSimpleName().equals("MySQLNonTransientConnectionException")) {
+				print(DataBase.fileMessage.getString("SQL.DataBase_Reconnecting"));
+				isconnect = false;
+			}else
+				se.printStackTrace();
+		}catch(Exception e){
+			e.printStackTrace();
+		}finally{
 			try{
-				stmt = conn.createStatement();
-				String sql = "use " + db;
-				stmt.executeUpdate(sql);
-				if(!isconnect) print("DataBase is connect");
-				isconnect = true;
-			}catch(SQLException se){
-				if(se.getClass().getSimpleName().equals("CommunicationsException") || se.getClass().getSimpleName().equals("MySQLNonTransientConnectionException")) {
-					print("Reconnecting the DataBase...");
-					isconnect = false;
-				}else
-					se.printStackTrace();
-			}catch(Exception e){
-				e.printStackTrace();
-			}finally{
-				try{
-					if(stmt!=null)
-					stmt.close();
-				}catch(SQLException se2){
-					se2.printStackTrace();
-				}
+				if(stmt!=null)
+				stmt.close();
+			}catch(SQLException se2){
+				se2.printStackTrace();
 			}
-	    }
+		}
 	}
 	
-	private void noconnect(String command) {
-		print("can not use this command '" + command + "', connect is fail");
+	protected void noconnect(String command) {
+		print(DataBase.fileMessage.getString("SQL.can_not_use_command").replace("%cmd%", command));
 	}
 	
     /**
@@ -181,16 +185,16 @@ public class MySQL {
 			Class.forName(JDBC_DRIVER);
 
 			//Open a connection
-			print("Connecting to database...");
+			print(DataBase.fileMessage.getString("SQL.DataBase_Connecting"));
 			this.conn = DriverManager.getConnection(DB_URL, USER, PASS);		
-			timerCheckConnect.schedule(new checkMySQLConnect(), 1000, 1000);
+			this.key = DataBase.CMySQLC.add(this);
 			isconnect = true;
 			//if(!this.SelectDataBase()) CreateDataBase(this.db);
 		}catch(SQLException se){
 			//Handle errors for JDBC	
 			if(se.getClass().getSimpleName().equals("CommunicationsException")) {
 				conn = null;
-				print("Connecting fail");
+				print(DataBase.fileMessage.getString("SQL.Connecting_fail"));
 			}else
 				se.printStackTrace();
 			return false;
@@ -210,8 +214,7 @@ public class MySQL {
 		try{
 			if(conn!=null)
 				conn.close();
-			timerCheckConnect.cancel();
-			timerCheckConnect = new Timer();
+			DataBase.CMySQLC.remove(this.key);
 			conn = null;
 			return true;
 		}catch(SQLException se){
@@ -235,11 +238,11 @@ public class MySQL {
 		
 		try{
 			//Execute a query
-			print("Creating database...");
+			print(DataBase.fileMessage.getString("SQL.DataBase_Creating"));
 			stmt = conn.createStatement();
 			String sql = "CREATE DATABASE " + DataBaseName;
 			stmt.executeUpdate(sql);
-			print("Database created successfully...");
+			print(DataBase.fileMessage.getString("SQL.DataBase_Create_Success"));
 			this.SelectDataBase();
 		}catch(SQLException se){
 			//Handle errors for JDBC
@@ -271,11 +274,11 @@ public class MySQL {
 	   
 		try{
 			//Execute a query
-			print("Deleting database...");
+			print(DataBase.fileMessage.getString("SQL.DataBase_Deleting"));
 			stmt = conn.createStatement();
 			String sql = "DROP DATABASE " + DataBaseName;
 			stmt.executeUpdate(sql);
-			print("Database deleted successfully...");
+			print(DataBase.fileMessage.getString("SQL.DataBase_Delete_Success"));
 		}catch(SQLException se){
 			//Handle errors for JDBC
 			se.printStackTrace();
@@ -308,14 +311,14 @@ public class MySQL {
 		boolean success = false;
 		try{
 			//Execute a query
-			print("Select database[ " + db + " ]...");
+			print(DataBase.fileMessage.getString("SQL.DataBase_Selecting").replaceAll("%db%", db));
 			stmt = conn.createStatement();
 			String sql = "use " + db;
 			print("SelectDataBase = " + stmt.executeUpdate(sql));
-			print("Database[ " + db + " ]Select successfully...");
+			print(DataBase.fileMessage.getString("SQL.DataBase_Select_Success").replaceAll("%db%", db));
 			success = true;
 		}catch(SQLSyntaxErrorException mse) {
-			print("can not get DataBase [ " + db + " ]");
+			print(DataBase.fileMessage.getString("SQL.DataBase_Select_Fail").replaceAll("%db%", db));
 		}catch(SQLException se){
 			//Handle errors for JDBC
 			se.printStackTrace();
@@ -351,7 +354,7 @@ public class MySQL {
 	   
 		try{
 			//Execute a query
-			print("Creating table in given database...");
+			print(DataBase.fileMessage.getString("SQL.Table_Createing").replaceAll("%table%", tableName).replaceAll("%db%", db));
 			stmt = conn.createStatement();
 			
 			String sql = "use " + db;
@@ -362,7 +365,7 @@ public class MySQL {
 			sql = sql + "PRIMARY KEY ( " + PRIMARY_KEY +" ))";
 			
 			stmt.executeUpdate(sql);
-			print("Created table in given database successfully...");
+			print(DataBase.fileMessage.getString("SQL.Table_Create_Success").replaceAll("%table%", tableName).replaceAll("%db%", db));
 		}catch(SQLException se){
 			//Handle errors for JDBC
 			se.printStackTrace();
@@ -398,7 +401,7 @@ public class MySQL {
 		boolean success = false;
 		try{
 			stmt = conn.createStatement();
-			print("Insert DATA");
+			print(DataBase.fileMessage.getString("SQL.Insert_Data").replaceAll("%table%", tableName).replaceAll("%db%", db));
 			String sql = "use " + db;
 			stmt.executeUpdate(sql);
 			
@@ -410,9 +413,9 @@ public class MySQL {
 			}
 			FieldName = FieldName.substring(0, FieldName.length()-1) + ")";
 			InsertValue = InsertValue.substring(0, InsertValue.length()-1) + ")";
-			print("Command = INSERT INTO " + tableName + " " + FieldName + " VALUES " + InsertValue);
+			print(DataBase.fileMessage.getString("SQL.Insert_Cmd").replaceAll("%cmd%", "INSERT INTO " + tableName + " " + FieldName + " VALUES " + InsertValue));
 			stmt.executeUpdate("INSERT INTO " + tableName + " " + FieldName + " VALUES " + InsertValue);
-			print("Insert DATA successfully...");
+			print(DataBase.fileMessage.getString("SQL.Insert_Data_Success").replaceAll("%table%", tableName).replaceAll("%db%", db));
 			success = true;
 		}catch(SQLException se){
 			//Handle errors for JDBC
@@ -462,7 +465,7 @@ public class MySQL {
 		boolean success = false;
 		try{
 			//Execute a query
-			print("run command: " + command);
+			print(DataBase.fileMessage.getString("SQL.Run_cmd").replaceAll("%cmd%", command));
 			stmt = conn.createStatement();
 			
 			String sql = "use " + db;
@@ -482,7 +485,7 @@ public class MySQL {
 				data_list.add(data_map);
 		    }
 			rs.close();
-			print("command run successfully...");
+			print(DataBase.fileMessage.getString("SQL.Run_cmd_Success"));
 			success = true;
 		}catch(SQLException se){
 			//Handle errors for JDBC
@@ -520,14 +523,14 @@ public class MySQL {
 		boolean success = false;
 		try{
 			//Execute a query
-			print("run command: " + command);
+			print(DataBase.fileMessage.getString("SQL.Run_cmd").replaceAll("%cmd%", command));
 			stmt = conn.createStatement();
 			
 			String sql = "use " + db;
 			stmt.executeUpdate(sql);
 			
 			rs = stmt.executeQuery(command);
-			print("command run successfully...");
+			print(DataBase.fileMessage.getString("SQL.Run_cmd_Success"));
 			success = true;
 		}catch(SQLException se){
 			//Handle errors for JDBC
@@ -564,14 +567,14 @@ public class MySQL {
 		boolean success = false;
 		try{
 			//Execute a query
-			print("run command: " + command);
+			print(DataBase.fileMessage.getString("SQL.Run_cmd").replaceAll("%cmd%", command));
 			stmt = conn.createStatement();
 			
 			String sql = "use " + db;
 			stmt.executeUpdate(sql);
 			
 			stmt.executeUpdate(command);
-			print("command run successfully...");
+			print(DataBase.fileMessage.getString("SQL.Run_cmd_Success"));
 			success = true;
 		}catch(SQLException se){
 			//Handle errors for JDBC
@@ -626,4 +629,18 @@ public class MySQL {
 		java.util.Date today = new java.util.Date();
 		return new java.sql.Timestamp(today.getTime());
 	}
+	
+	/**
+	 * 將資料轉回list
+	 * @param inputdata
+	 * @return 回傳整理好得list
+	 */
+	public List<String> Stringtolist(String inputdata) {
+		if(inputdata.equals("[]"))
+			return new ArrayList<String>();
+		String data = inputdata;
+		data = data.replaceAll("^\\[|]$", "");
+		return Arrays.asList(data.split(", |,"));
+	}
+	
 }

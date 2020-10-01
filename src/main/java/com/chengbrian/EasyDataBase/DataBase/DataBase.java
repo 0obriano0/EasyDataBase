@@ -19,6 +19,7 @@ import org.bukkit.plugin.Plugin;
 import com.chengbrian.EasyDataBase.AnsiColor;
 import com.chengbrian.EasyDataBase.main;
 import com.chengbrian.EasyDataBase.FileIO.FileMessage;
+import com.chengbrian.EasyDataBase.Timer.checkMySQLConnect;
 
 
 /**
@@ -57,6 +58,10 @@ public class DataBase {
 		//System.out.print("[MobDrop2] " + msg);
 	}
 	
+	/**
+	 * 使用一個多執行緒來跑檢查MySQL連線狀態
+	 */
+	public static checkMySQLConnect CMySQLC = new checkMySQLConnect();
 	/**
 	 * 抓取指令列表(/EasyDataBase 列表資料)
 	 * @param plugin 系統資料
