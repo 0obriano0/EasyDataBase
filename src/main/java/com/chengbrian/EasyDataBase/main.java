@@ -129,7 +129,7 @@ public class main extends JavaPlugin{
     public static ImainCommandSystem getCommandClass(String command) {
     	ImainCommandSystem cmd = null;
         try {
-            cmd = (ImainCommandSystem) main.class.getClassLoader().loadClass("com.brian." + DataBase.pluginName + ".Command" + ".Command" + command).newInstance();
+            cmd = (ImainCommandSystem) main.class.getClassLoader().loadClass("com.chengbrian." + DataBase.pluginName + ".Command" + ".Command" + command).newInstance();
         }catch(InstantiationException ex) {
         	ex.printStackTrace();
         }catch (Exception ex) {
